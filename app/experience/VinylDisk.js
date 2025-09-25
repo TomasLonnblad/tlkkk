@@ -1,0 +1,109 @@
+/* eslint-disable react/no-unknown-property */
+import React, { useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Outlines, useGLTF, useTexture } from "@react-three/drei";
+
+import useStore from "../store";
+import useCameraRig from "../_hooks/useCameraRig";
+import {
+  initialCameraPosition,
+  mobileCameraPosition,
+  vinylPosition,
+} from "../_constants/cameraConfig";
+import PropTypes from "prop-types";
+
+VinylDisk.propTypes = {
+  controlsRef: PropTypes.object,
+};
+
+export function VinylDisk({ controlsRef, ...props }) {
+  const { nodes, materials } = useGLTF("./models/vinyl-disk.glb");
+  const currentImage = useStore((state) => state.currentImageLow);
+  const texture = useTexture(currentImage || "/images/default.jpeg");
+
+  const vinylDiskInner = useRef();
+  const vinylDiskOuter = useRef();
+
+  const isVinylSelected = useStore((state) => state.isVinylSelected);
+  const setIsVinylSelected = useStore((state) => state.setIsVinylSelected);
+
+  const monitorIndex = useStore((state) => state.monitorIndex);
+
+  const moveCamera = useCameraRig(controlsRef);
+
+  const [hovered, setHovered] = useState(false);
+
+  useFrame((state, delta) => {
+    if (currentImage) {
+      if (vinylDiskInner.current) {
+        vinylDiskInner.current.rotation.y += 0.5 * delta;
+      }
+      if (vinylDiskOuter.current) {
+        vinylDiskOuter.current.rotation.z += 0.5 * delta;
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (!isVinylSelected && monitorIndex === null) {
+      const isMobile = window.innerWidth < 768;
+      const cameraConfig = isMobile
+        ? mobileCameraPosition
+        : initialCameraPosition;
+      moveCamera(cameraConfig.position, cameraConfig.target);
+    }
+  }, [isVinylSelected]);
+
+  const handleClick = () => {
+    const cameraConfig = vinylPosition[0];
+    moveCamera(cameraConfig.position, cameraConfig.target);
+    setIsVinylSelected(true);
+  };
+
+  return (
+    <group
+      onPointerEnter={() => {
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerLeave={() => {
+        setHovered(false);
+        document.body.style.cursor = "grab";
+      }}
+      {...props}
+    >
+      <mesh
+        ref={vinylDiskInner}
+        castShadow
+        receiveShadow
+        geometry={nodes.vinyl_disk_inner.geometry}
+        position={[1.224, 0.308, 1.134]}
+        scale={0.124}
+        rotation={[0, 0, 0]}
+        onClick={handleClick}
+      >
+        <meshBasicMaterial map={texture} />
+      </mesh>
+      <mesh
+        ref={vinylDiskOuter}
+        castShadow
+        receiveShadow
+        geometry={
+          nodes["#REC0002_33_Highway_To_Hell_#REC0002_Textures_0"].geometry
+        }
+        material={materials.REC0002_Textures}
+        position={[1.224, 0.306, 1.135]}
+        rotation={[-1.571, 0, 0]}
+        scale={2.462}
+        onClick={handleClick}
+      >
+        {hovered && <Outlines thickness={0.005} angle={10} color={"white"} />}
+      </mesh>
+    </group>
+  );
+}
+
+useGLTF.preload("./models/vinyl-disk.glb");
+
+export default VinylDisk;
+/* eslint-enable react/no-unknown-property */
